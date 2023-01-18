@@ -1,7 +1,7 @@
 use super::network::Network;
 use crate::graph::Edge;
 use anyhow::Result;
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 use petgraph::graph::{Graph, NodeIndex};
 use petgraph::Directed;
 pub struct RoadGraph {
@@ -67,6 +67,23 @@ impl RoadGraph {
     pub fn short_path(&self, from: NodeIndex<usize>, to: NodeIndex<usize>) -> Result<f64> {
         use petgraph::algo::dijkstra;
         let result = dijkstra(&self.graph, from, Some(to), |e| *e.weight());
+        for (node, weight) in &result {
+            debug!("node: {:?}, weight: {:?}", node, weight);
+        }
+        if !result.contains_key(&to) {
+            return Err(anyhow::anyhow!("no path"));
+        }
+        Ok(result[&to])
+    }
+
+    pub fn short_k_path(
+        &self,
+        from: NodeIndex<usize>,
+        to: NodeIndex<usize>,
+        k: usize,
+    ) -> Result<f64> {
+        use petgraph::algo::k_shortest_path;
+        let result = k_shortest_path(&self.graph, from, Some(to), k, |e| *e.weight());
         for (node, weight) in &result {
             debug!("node: {:?}, weight: {:?}", node, weight);
         }

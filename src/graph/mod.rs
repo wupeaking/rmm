@@ -22,7 +22,7 @@ mod test {
         let geojson = geojson::GeoJson::from_reader(reader).unwrap();
         let network = network::Network::try_from(geojson).unwrap();
         let graph = graph::RoadGraph::new(network);
-        let from = graph.network.find_node_by_id("31000028804").unwrap();
+        let from = graph.network.find_node_by_id("31000028835").unwrap();
         let to = graph.network.find_node_by_id("31000028718").unwrap();
         let result = graph
             .short_path(NodeIndex::new(from), NodeIndex::new(to))
