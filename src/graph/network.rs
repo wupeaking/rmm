@@ -1,6 +1,6 @@
 use crate::algorithm;
 use anyhow::Result;
-use geojson::Geometry;
+use geojson::{Geometry, Value};
 use std::collections::HashMap;
 /**
  * @file network.rs
@@ -37,12 +37,51 @@ impl Edge {
         self.from.clone()
     }
 
+    pub fn get_edge_id(&self) -> String {
+        self.id.clone()
+    }
+
     pub fn get_to_node(&self) -> String {
         self.to.clone()
     }
 
     pub fn get_length(&self) -> f64 {
         self.length
+    }
+
+    pub fn get_geometry(&self) -> &geojson::Geometry {
+        &self.geometry
+    }
+
+    // reurn minx, miny, maxx, maxy
+    pub fn get_geom_rect(&self) -> Result<(algorithm::Point, algorithm::Point)> {
+        let mut min_lng = 180 as f64;
+        let mut min_lat = 90 as f64;
+        let mut max_lng = -180 as f64;
+        let mut max_lat = -90 as f64;
+        match &self.geometry.value {
+            Value::LineString(line_string) => {
+                for point in line_string {
+                    if point[0] < min_lng {
+                        min_lng = point[0];
+                    }
+                    if point[0] > max_lng {
+                        max_lng = point[0];
+                    }
+                    if point[1] < min_lat {
+                        min_lat = point[1];
+                    }
+                    if point[1] > max_lat {
+                        max_lat = point[1];
+                    }
+                }
+                Ok((
+                    algorithm::Point(min_lng, min_lat),
+                    algorithm::Point(max_lng, max_lat),
+                ))
+            }
+            _ => Err(anyhow::anyhow!("geometry is not linestring")),
+        }
     }
 }
 

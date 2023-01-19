@@ -1,6 +1,27 @@
 use anyhow::Result;
 use geo::algorithm::haversine_distance::HaversineDistance;
 use geojson::{Geometry, Value};
+
+#[derive(Clone, Copy)]
+pub struct Point(pub f64, pub f64);
+pub struct Line(pub Vec<[f64; 2]>);
+
+impl TryInto<Line> for geojson::Geometry {
+    type Error = anyhow::Error;
+    fn try_into(self) -> Result<Line> {
+        match self.value {
+            Value::LineString(line_string) => {
+                let mut line = Vec::new();
+                for point in line_string {
+                    line.push([point[0], point[1]]);
+                }
+                Ok(Line(line))
+            }
+            _ => Err(anyhow::anyhow!("geometry is not linestring")),
+        }
+    }
+}
+
 /// 计算linestring的半正弦距离
 pub fn linestring_distance(geometry: &Geometry) -> Result<f64> {
     match &geometry.value {
@@ -21,16 +42,16 @@ pub fn linestring_distance(geometry: &Geometry) -> Result<f64> {
 // 点到直线的最短距离
 // 返回结果 最短距离, 偏移距离, 偏移点
 // (min_distance, offset, offset_point)
-pub fn linear_reference_distance(point: (f64, f64), line: &[[f64; 2]]) -> (f64, f64, (f64, f64)) {
+pub fn linear_reference_distance(point: Point, line: &[[f64; 2]]) -> (f64, f64, Point) {
     let mut min_distance = f64::MAX;
     let mut length_parsed = 0 as f64;
     let mut final_offset = f64::MAX;
-    let mut final_offset_point: (f64, f64) = (0.0, 0.0);
+    let mut final_offset_point = Point(0.0, 0.0);
     let line1 = &line[0..line.len() - 1];
     let line2 = &line[1..line.len()];
     for (p1, p2) in line1.iter().zip(line2.iter()) {
         let (distance, offfset, offset_point) =
-            point_to_line_distance(point, (p1[0], p1[1]), (p2[0], p2[1]));
+            point_to_line_distance(point, Point(p1[0], p1[1]), Point(p2[0], p2[1]));
         if distance < min_distance {
             min_distance = distance;
             final_offset = length_parsed + offfset;
@@ -42,11 +63,7 @@ pub fn linear_reference_distance(point: (f64, f64), line: &[[f64; 2]]) -> (f64, 
 }
 
 // 返回值 (distance, offfset, close_point)
-fn point_to_line_distance(
-    point: (f64, f64),
-    start: (f64, f64),
-    end: (f64, f64),
-) -> (f64, f64, (f64, f64)) {
+fn point_to_line_distance(point: Point, start: Point, end: Point) -> (f64, f64, Point) {
     let length = ((start.0 - end.0).powi(2) + (start.1 - end.1).powi(2)).sqrt();
     if length == 0.0 {
         return (
@@ -68,7 +85,7 @@ fn point_to_line_distance(
         radio
     };
     // 投影点坐标
-    let offset_point = (
+    let offset_point = Point(
         start.0 + radio * vec_start_end.0,
         start.1 + radio * vec_start_end.1,
     );
