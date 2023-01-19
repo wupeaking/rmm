@@ -1,13 +1,11 @@
-use super::model::Candidate;
+use super::model::{Candidate, Config, Layer, LayerLists, Layers, MMResult, Trajectory};
 use crate::algorithm;
-use crate::graph::network;
-use crate::graph::RoadGraph;
+use crate::graph::{network, Edge, EdgeType, RoadGraph};
 use anyhow;
 use geojson;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use rtree_rs::{RTree, Rect};
-use std::borrow::Borrow;
-use std::clone;
+use std::cell::RefCell;
 use std::{fs::File, io::BufReader, rc::Rc};
 
 pub struct MMatch {
@@ -136,5 +134,148 @@ impl MMatch {
             return f64::MIN_POSITIVE;
         }
         v
+    }
+
+    fn calc_tp(gps_dist: f64, candidate_dist: f64) -> f64 {
+        if gps_dist > candidate_dist {
+            return 1.0 as f64;
+        }
+        gps_dist / candidate_dist
+    }
+
+    fn max_prob_candidate(layers: &Layers) -> Option<Candidate> {
+        if layers.is_empty() {
+            return None;
+        }
+        let mut max_prob = 0.0;
+        let mut max_prob_candidate: Option<Candidate> = None;
+        for layer in layers {
+            if layer.candidate.is_none() {
+                continue;
+            }
+            if layer.cumulative_prob > max_prob {
+                max_prob = layer.cumulative_prob;
+                max_prob_candidate = Some(layer.candidate.as_ref().unwrap().clone());
+            }
+        }
+        max_prob_candidate
+    }
+}
+
+impl MMatch {
+    fn match_traj(&mut self, traj: &Trajectory, cfg: &Config) -> anyhow::Result<MMResult> {
+        if traj.len() == 0 {
+            return Err(anyhow::anyhow!("trajectory is empty"));
+        }
+        let mut layer_lists = LayerLists::new();
+
+        let condicates =
+            self.query_candidate(traj[0].point, cfg.radius, cfg.knn, cfg.gps_err, None);
+        let mut cur_layers = Layers::new();
+        // 如果没有候选者 添加一个空的候选者
+
+        for mut candidate in condicates {
+            // 开始构建虚拟图
+            let from_node_index = self
+                .road_graph
+                .network
+                .find_node_by_id(&candidate.edge.get_from_node());
+            if from_node_index.is_none() {
+                error!(
+                    "from node not found by id {}",
+                    candidate.edge.get_from_node()
+                );
+                continue;
+            }
+            let to_node_index = self
+                .road_graph
+                .network
+                .find_node_by_id(&candidate.edge.get_to_node());
+            if to_node_index.is_none() {
+                error!("to node not found by id {}", candidate.edge.get_to_node());
+                continue;
+            }
+            // 构建虚拟的node 并添加到图中
+            // a--->b     a-->cs--->b
+            let dummy_node_id = format!(
+                "{:.16}-{:.16}-{:.16}-{:.16}",
+                candidate.closest_point.0,
+                candidate.closest_point.1,
+                traj[0].point.0,
+                traj[0].point.1
+            );
+            // self.road_graph.network.add_node(dummy_node_id.clone())?;
+            // 生成一个虚拟边
+            use uuid::Uuid;
+            let edge = Edge::new(
+                Uuid::new_v4().to_string(),
+                candidate.edge.get_from_node().clone(),
+                dummy_node_id.clone(),
+                candidate.offset,
+                candidate.offset,
+                EdgeType::Dummy,
+                "dummy_edge".to_string(),
+                candidate.edge.get_geometry().clone(),
+            );
+            self.road_graph.update_graph(edge)?;
+            // 生成cs---->b 这个虚拟边
+            let edge = Edge::new(
+                Uuid::new_v4().to_string(),
+                dummy_node_id.clone(),
+                candidate.edge.get_to_node().clone(),
+                candidate.edge.get_length() - candidate.offset,
+                candidate.edge.get_length() - candidate.offset,
+                EdgeType::Dummy,
+                "dummy_edge".to_string(),
+                candidate.edge.get_geometry().clone(),
+            );
+            self.road_graph.update_graph(edge)?;
+            // 计算输出概率
+            candidate.ep = self.calc_ep(candidate.distance, cfg.gps_err);
+            let ep = candidate.ep;
+            cur_layers.push(Layer {
+                candidate: Some(candidate),
+                prev_layer: RefCell::new(None),
+                cumulative_prob: ep.ln(),
+                tp: 0.0,
+            });
+        }
+        layer_lists.push(cur_layers);
+
+        for (index, trj) in (&traj[1..]).iter().enumerate() {
+            let mut cur_layers = Layers::new();
+            let prev_max_condate = MMatch::max_prob_candidate(&layer_lists.last().unwrap());
+            let prev_candiate = if prev_max_condate.is_none() {
+                None
+            } else {
+                Some(Rc::new(prev_max_condate.unwrap()))
+            };
+            let condicates =
+                self.query_candidate(trj.point, cfg.radius, cfg.knn, cfg.gps_err, prev_candiate);
+            if condicates.is_empty() {
+                warn!("no candidate found in {} gps point", index + 1);
+                layer_lists.push(cur_layers);
+                continue;
+            }
+            for cs in condicates {
+                cur_layers.push(Layer {
+                    candidate: Some(cs),
+                    prev_layer: RefCell::new(None),
+                    cumulative_prob: f64::MIN,
+                    tp: 0.0,
+                })
+            }
+            let prev_layers = layer_lists.last().unwrap();
+            for prev_layer in prev_layers {
+                for cur_layer in cur_layers.iter_mut() {
+                    let cur_condidate = cur_layer.candidate.as_ref().unwrap();
+                }
+            }
+        }
+
+        Ok(MMResult {
+            o_path: vec![],
+            matched_candidates: vec![],
+        })
     }
 }

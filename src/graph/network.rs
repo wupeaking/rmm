@@ -15,7 +15,7 @@ pub struct Network {
 }
 
 #[derive(Clone)]
-enum EdgeType {
+pub enum EdgeType {
     Real,  // 真实的edge
     Dummy, // 虚拟的edge
 }
@@ -30,6 +30,30 @@ pub struct Edge {
     edge_type: EdgeType, // edge的类型
     name: String,        // edge的名字
     geometry: Geometry,  // edge的几何信息
+}
+
+impl Edge {
+    pub fn new(
+        id: String,
+        from: String,
+        to: String,
+        length: f64,
+        ori_length: f64,
+        edge_type: EdgeType,
+        name: String,
+        geometry: Geometry,
+    ) -> Self {
+        Edge {
+            id,
+            from,
+            to,
+            length,
+            ori_length,
+            edge_type,
+            name,
+            geometry,
+        }
+    }
 }
 
 impl Edge {

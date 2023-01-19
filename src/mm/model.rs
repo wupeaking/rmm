@@ -20,17 +20,34 @@ pub struct Candidate {
 }
 
 pub struct Layer {
-    pub candidate: Candidate,
-    prev_layer: RefCell<Option<Rc<Layer>>>,
-    cumulative_prob: f64, // 累积概率
-    tp: f64,              // 转移概率
+    pub candidate: Option<Candidate>,
+    pub prev_layer: RefCell<Option<Rc<Layer>>>,
+    pub cumulative_prob: f64, // 累积概率
+    pub tp: f64,              // 转移概率
 }
 
 pub type Layers = Vec<Layer>;
+pub type LayerLists = Vec<Layers>;
 
 pub struct TrajInfo {
-    pub point: (f64, f64),
+    pub point: algorithm::Point,
     pub time_stamp: u64,
 }
 
 pub type Trajectory = Vec<TrajInfo>;
+
+pub struct MMResult {
+    pub o_path: Vec<String>,
+    pub matched_candidates: Vec<Candidate>,
+}
+
+#[derive(Clone)]
+pub struct Config {
+    pub gps_err: f64,
+    pub radius: f64,
+    pub knn: u16,
+    pub v_max: f64, // 最大速度
+    pub factor: f64,
+    pub reverse_tolerance: f64, // 反向公差
+    pub road_netwok_path: String,
+}
