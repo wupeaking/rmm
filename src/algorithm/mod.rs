@@ -2,7 +2,7 @@ use anyhow::Result;
 use geo::algorithm::haversine_distance::HaversineDistance;
 use geojson::{Geometry, Value};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Point(pub f64, pub f64);
 pub struct Line(pub Vec<[f64; 2]>);
 
@@ -95,4 +95,8 @@ fn point_to_line_distance(point: Point, start: Point, end: Point) -> (f64, f64, 
     let min_distance =
         ((point.0 - offset_point.0).powi(2) + (point.1 - offset_point.1).powi(2)).sqrt();
     (min_distance, offset, offset_point)
+}
+
+pub fn eu_distance(pa: &Point, pb: &Point) -> f64 {
+    ((pa.0 - pb.0).powi(2) + (pa.1 - pb.1).powi(2)).sqrt()
 }

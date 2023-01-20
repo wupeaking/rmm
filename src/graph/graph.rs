@@ -64,16 +64,21 @@ impl RoadGraph {
         Ok(())
     }
 
-    pub fn short_path(&self, from: NodeIndex<usize>, to: NodeIndex<usize>) -> Result<f64> {
+    pub fn short_path(&self, from: usize, to: usize) -> Result<f64> {
         use petgraph::algo::dijkstra;
-        let result = dijkstra(&self.graph, from, Some(to), |e| *e.weight());
+        let result = dijkstra(
+            &self.graph,
+            NodeIndex::new(from),
+            Some(NodeIndex::new(to)),
+            |e| *e.weight(),
+        );
         for (node, weight) in &result {
             debug!("node: {:?}, weight: {:?}", node, weight);
         }
-        if !result.contains_key(&to) {
+        if !result.contains_key(&NodeIndex::new(to)) {
             return Err(anyhow::anyhow!("no path"));
         }
-        Ok(result[&to])
+        Ok(result[&NodeIndex::new(to)])
     }
 
     pub fn short_k_path(

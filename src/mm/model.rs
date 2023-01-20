@@ -17,18 +17,20 @@ pub struct Candidate {
     pub closest_point: algorithm::Point, // 最近点
     pub ep: f64,                         // 计算出的输出概率
     pub dummy_node_index: usize,         // 该点加入路网图形成的虚拟节点的索引
+    pub ori_traj_point: TrajInfo,
 }
 
 pub struct Layer {
     pub candidate: Option<Candidate>,
-    pub prev_layer: RefCell<Option<Rc<Layer>>>,
+    pub prev_layer: RefCell<Option<Rc<RefCell<Layer>>>>,
     pub cumulative_prob: f64, // 累积概率
     pub tp: f64,              // 转移概率
 }
 
-pub type Layers = Vec<Layer>;
+pub type Layers = Vec<Rc<RefCell<Layer>>>;
 pub type LayerLists = Vec<Layers>;
 
+#[derive(Debug, Clone)]
 pub struct TrajInfo {
     pub point: algorithm::Point,
     pub time_stamp: u64,

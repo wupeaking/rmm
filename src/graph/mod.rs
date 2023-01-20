@@ -24,9 +24,7 @@ mod test {
         let graph = graph::RoadGraph::new(network);
         let from = graph.network.find_node_by_id("31000028835").unwrap();
         let to = graph.network.find_node_by_id("31000028718").unwrap();
-        let result = graph
-            .short_path(NodeIndex::new(from), NodeIndex::new(to))
-            .unwrap();
+        let result = graph.short_path(from, to).unwrap();
         assert_eq!(result, 2630.016424987122);
     }
 }

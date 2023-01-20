@@ -73,6 +73,14 @@ impl Edge {
         self.length
     }
 
+    pub fn set_length(&mut self, length: f64) {
+        self.length = length;
+    }
+
+    pub fn set_ori_length(&mut self, ori_length: f64) {
+        self.ori_length = ori_length;
+    }
+
     pub fn get_geometry(&self) -> &geojson::Geometry {
         &self.geometry
     }
