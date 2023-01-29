@@ -491,7 +491,7 @@ impl MMatch {
                 Some(prev.as_ref().unwrap().clone())
             };
         }
-        for i in (0..layer_lists.len()).rev() {
+        for i in (0..layer_lists.len() - 1).rev() {
             let cur_layer = prev_layer.as_ref();
             if cur_layer.is_none() {
                 let layers = &layer_lists[i];
