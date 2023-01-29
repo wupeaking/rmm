@@ -8,7 +8,6 @@ use std::fs;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
-use std::str::FromStr;
 use wkt;
 #[derive(Parser, Debug)]
 #[command(name = "RMM")]
@@ -26,7 +25,7 @@ struct Args {
     #[arg(long, default_value_t = 4)]
     knn: u16,
     /// max speed
-    #[arg(long, default_value_t = 0.01)]
+    #[arg(long, default_value_t = 30.0)]
     max_speed: f64,
     /// factor for speed
     #[arg(long, default_value_t = 4.0)]

@@ -22,14 +22,16 @@ pub enum EdgeType {
 
 #[derive(Clone)]
 pub struct Edge {
-    id: String,          // edge的id
-    from: String,        // edge的起点
-    to: String,          // edge的终点
-    length: f64,         // edge的长度 米制单位
-    ori_length: f64,     // edge的原始长度
+    id: String,      // edge的id
+    from: String,    // edge的起点
+    to: String,      // edge的终点
+    length: f64,     // edge的长度 米制单位
+    ori_length: f64, // edge的原始长度
+    #[allow(dead_code)]
     edge_type: EdgeType, // edge的类型
-    name: String,        // edge的名字
-    geometry: Geometry,  // edge的几何信息
+    #[allow(dead_code)]
+    name: String, // edge的名字
+    geometry: Geometry, // edge的几何信息
 }
 
 impl Edge {
