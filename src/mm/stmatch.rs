@@ -1,5 +1,6 @@
-use super::model::{Candidate, Config, Layer, LayerLists, Layers, MMResult, Trajectory};
+use super::model::{Candidate, Config, Layer, LayerLists, Layers, MMResult};
 use super::TrajInfo;
+use super::Trajectory;
 use crate::algorithm;
 use crate::graph::{network, Edge, EdgeType, RoadGraph};
 use anyhow;
@@ -14,6 +15,7 @@ pub struct MMatch {
     road_rtree: RTree<2, f64, usize>,
 }
 
+// from network file to map matching
 impl TryFrom<String> for MMatch {
     type Error = anyhow::Error;
     fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
@@ -165,7 +167,7 @@ impl MMatch {
 }
 
 impl MMatch {
-    fn match_traj(&mut self, traj: &Trajectory, cfg: &Config) -> anyhow::Result<MMResult> {
+    pub fn match_traj(&mut self, traj: &Trajectory, cfg: &Config) -> anyhow::Result<MMResult> {
         if traj.len() == 0 {
             return Err(anyhow::anyhow!("trajectory is empty"));
         }
@@ -451,11 +453,85 @@ impl MMatch {
             // todo:: 打印当前最大累积概率
         }
 
-        // todo:: 回朔
+        // 回溯
+        Ok(self.back_tracking(&layer_lists))
+    }
 
-        Ok(MMResult {
+    // 回溯
+    fn back_tracking(&self, layer_lists: &LayerLists) -> MMResult {
+        let mut result = MMResult {
             o_path: vec![],
             matched_candidates: vec![],
-        })
+        };
+
+        let mut prev_layer: Option<Rc<RefCell<Layer>>> = None;
+        let last_layers = &layer_lists[layer_lists.len() - 1];
+        if last_layers.is_empty() {
+            prev_layer = None;
+            result.o_path.push("".to_string());
+            result.matched_candidates.push(None);
+        } else {
+            let max_layer = last_layers.iter().max_by(|a, b| {
+                a.borrow()
+                    .cumulative_prob
+                    .partial_cmp(&b.borrow().cumulative_prob)
+                    .unwrap()
+            });
+            let max_layer = max_layer.unwrap().as_ref().borrow();
+            result
+                .o_path
+                .push(max_layer.candidate.as_ref().unwrap().edge.get_edge_id());
+            result
+                .matched_candidates
+                .push(Some(max_layer.candidate.as_ref().unwrap().clone()));
+            prev_layer = if max_layer.prev_layer.borrow().is_none() {
+                None
+            } else {
+                let prev = max_layer.prev_layer.borrow();
+                Some(prev.as_ref().unwrap().clone())
+            };
+        }
+        for i in (0..layer_lists.len()).rev() {
+            let cur_layer = prev_layer.as_ref();
+            if cur_layer.is_none() {
+                let layers = &layer_lists[i];
+                let max_layer = layers.iter().max_by(|a, b| {
+                    a.borrow()
+                        .cumulative_prob
+                        .partial_cmp(&b.borrow().cumulative_prob)
+                        .unwrap()
+                });
+                let max_layer = max_layer.unwrap().as_ref().borrow();
+                result
+                    .o_path
+                    .push(max_layer.candidate.as_ref().unwrap().edge.get_edge_id());
+                result
+                    .matched_candidates
+                    .push(Some(max_layer.candidate.as_ref().unwrap().clone()));
+                prev_layer = if max_layer.prev_layer.borrow().is_none() {
+                    None
+                } else {
+                    let prev = max_layer.prev_layer.borrow();
+                    Some(prev.as_ref().unwrap().clone())
+                };
+                continue;
+            }
+            let cur = cur_layer.unwrap().clone();
+            let edge_id = cur.borrow().candidate.as_ref().unwrap().edge.get_edge_id();
+            let can = cur.as_ref().borrow().candidate.as_ref().unwrap().clone();
+            result.o_path.push(edge_id);
+            result.matched_candidates.push(Some(can));
+            prev_layer = if cur.as_ref().borrow().prev_layer.borrow().is_none() {
+                None
+            } else {
+                let cur_ref = cur.as_ref().borrow();
+                let prev = cur_ref.prev_layer.borrow();
+                Some(prev.as_ref().unwrap().clone())
+            };
+        }
+
+        result.o_path.reverse();
+        result.matched_candidates.reverse();
+        result
     }
 }

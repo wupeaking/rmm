@@ -1,3 +1,4 @@
+use super::traj::TrajInfo;
 use crate::algorithm;
 use crate::graph::Edge;
 use std::cell::RefCell;
@@ -30,17 +31,9 @@ pub struct Layer {
 pub type Layers = Vec<Rc<RefCell<Layer>>>;
 pub type LayerLists = Vec<Layers>;
 
-#[derive(Debug, Clone)]
-pub struct TrajInfo {
-    pub point: algorithm::Point,
-    pub time_stamp: u64,
-}
-
-pub type Trajectory = Vec<TrajInfo>;
-
 pub struct MMResult {
     pub o_path: Vec<String>,
-    pub matched_candidates: Vec<Candidate>,
+    pub matched_candidates: Vec<Option<Candidate>>,
 }
 
 #[derive(Clone)]

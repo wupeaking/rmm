@@ -9,7 +9,7 @@ mod test {
     use super::graph;
     use super::network;
     use crate::utils::log;
-    use petgraph::graph::NodeIndex;
+    // use petgraph::graph::NodeIndex;
     use std::fs::File;
     use std::io::BufReader;
 
