@@ -56,14 +56,14 @@ fn main() {
     // 检查文件后缀
     let ext = args.input_file.extension().unwrap();
 
-    let mutile_gps_trajs = if ext == ".geojson" {
+    let mutile_gps_trajs = if ext == "geojson" {
         info!("read geojson file {} ", args.input_file.display());
         let file = File::open(args.input_file).unwrap();
         let reader = BufReader::new(file);
         let geojson = geojson::GeoJson::from_reader(reader).unwrap();
         let gps_trajs = traj::MutileTrajectory::try_from(geojson).expect("read gps traj failed: ");
         gps_trajs
-    } else if ext == ".wkt" {
+    } else if ext == "wkt" {
         info!("read wkt file {} ", args.input_file.display());
         let content = fs::read_to_string(args.input_file).expect("read wkt file failed: ");
         // let wkt: wkt::Wkt<f64> = wkt::Wkt::from_str(&content).unwrap();

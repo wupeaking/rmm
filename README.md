@@ -25,3 +25,8 @@ Options:
   -h, --help                                   Print help
   -V, --version                                Print version
 ```
+
+### 示例
+```shell
+rmm --network-file ./edges_shanghai.json traj.geojson
+```

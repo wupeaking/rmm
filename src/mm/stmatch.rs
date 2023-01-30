@@ -246,6 +246,7 @@ impl MMatch {
         layer_lists.push(cur_layers);
 
         for (index, trj) in (&traj[1..]).iter().enumerate() {
+            let index = index + 1;
             let mut cur_layers = Layers::new();
             let prev_max_condate = MMatch::max_prob_candidate(&layer_lists.last().unwrap());
             let prev_candiate = if prev_max_condate.is_none() {
@@ -439,9 +440,9 @@ impl MMatch {
                     let cumu_prob =
                         prev_layer.borrow().cumulative_prob + cur_condidate.ep.ln() + tp.ln();
                     // 如果该累及概率大于目前的累积概率 则更新当前层
-
-                    // let lay = prev_layer.as_ref().as_ptr();
-                    if cumu_prob > cur_layer.borrow().cumulative_prob {
+                    let cur_layer_cumu_pro = cur.cumulative_prob;
+                    drop(cur);
+                    if cumu_prob > cur_layer_cumu_pro {
                         cur_layer.borrow_mut().cumulative_prob = cumu_prob;
                         cur_layer.borrow_mut().tp = tp;
                         *cur_layer.borrow_mut().prev_layer.borrow_mut() = Some(prev_layer.clone());
