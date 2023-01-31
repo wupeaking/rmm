@@ -17,7 +17,7 @@ pub struct Candidate {
     pub offset: f64,                     // 偏移量
     pub closest_point: algorithm::Point, // 最近点
     pub ep: f64,                         // 计算出的输出概率
-    pub dummy_node_index: usize,         // 该点加入路网图形成的虚拟节点的索引
+    pub dummy_node_id: String,           // 该点加入路网图形成的虚拟节点的索引
     pub ori_traj_point: TrajInfo,
 }
 

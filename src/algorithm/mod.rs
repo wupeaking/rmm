@@ -100,3 +100,19 @@ fn point_to_line_distance(point: Point, start: Point, end: Point) -> (f64, f64, 
 pub fn eu_distance(pa: &Point, pb: &Point) -> f64 {
     ((pa.0 - pb.0).powi(2) + (pa.1 - pb.1).powi(2)).sqrt()
 }
+
+// linestring的欧式距离
+pub fn linestring_eu_distance(geometry: &Geometry) -> Result<f64> {
+    match &geometry.value {
+        Value::LineString(line_string) => {
+            let mut distance = 0.0;
+            let line1 = &line_string[0..line_string.len() - 1];
+            let line2 = &line_string[1..line_string.len()];
+            for (p1, p2) in line1.iter().zip(line2.iter()) {
+                distance += eu_distance(&Point(p1[0], p1[1]), &Point(p2[0], p2[1]));
+            }
+            Ok(distance)
+        }
+        _ => Err(anyhow::anyhow!("geometry is not linestring")),
+    }
+}

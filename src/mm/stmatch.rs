@@ -91,18 +91,26 @@ impl MMatch {
                     if offset > edge.get_length() {
                         continue;
                     }
-                    let candidate = Candidate {
+                    let mut candidate = Candidate {
                         edge: edge,
                         distance: distance,
                         offset: offset,
                         closest_point: close_point,
-                        dummy_node_index: 0,
+                        dummy_node_id: "".to_string(),
                         ep: self.calc_ep(distance, gps_err),
                         ori_traj_point: traj_point.clone(),
                     };
+                    candidate.dummy_node_id = format!(
+                        "{:.16}-{:.16}-{:.16}-{:.16}",
+                        candidate.closest_point.0,
+                        candidate.closest_point.1,
+                        traj_point.point.0,
+                        traj_point.point.1
+                    );
                     if prev_edge_id == candidate.edge.get_edge_id() {
                         exit_candidate = Some(candidate.clone());
                     }
+
                     candidates.push(candidate);
                 }
                 None => {
@@ -151,7 +159,7 @@ impl MMatch {
         if layers.is_empty() {
             return None;
         }
-        let mut max_prob = 0.0;
+        let mut max_prob = f64::MIN;
         let mut max_prob_candidate: Option<Candidate> = None;
         for layer in layers {
             if layer.borrow().candidate.is_none() {
@@ -200,22 +208,15 @@ impl MMatch {
             }
             // 构建虚拟的node 并添加到图中
             // a--->b     a-->cs--->b
-            let dummy_node_id = format!(
-                "{:.16}-{:.16}-{:.16}-{:.16}",
-                candidate.closest_point.0,
-                candidate.closest_point.1,
-                traj[0].point.0,
-                traj[0].point.1
-            );
             // self.road_graph.network.add_node(dummy_node_id.clone())?;
             // 生成一个虚拟边
             use uuid::Uuid;
             let edge = Edge::new(
                 Uuid::new_v4().to_string(),
                 candidate.edge.get_from_node().clone(),
-                dummy_node_id.clone(),
+                candidate.dummy_node_id.clone(),
                 candidate.offset,
-                candidate.offset,
+                0.0,
                 EdgeType::Dummy,
                 "dummy_edge".to_string(),
                 candidate.edge.get_geometry().clone(),
@@ -224,10 +225,10 @@ impl MMatch {
             // 生成cs---->b 这个虚拟边
             let edge = Edge::new(
                 Uuid::new_v4().to_string(),
-                dummy_node_id.clone(),
+                candidate.dummy_node_id.clone(),
                 candidate.edge.get_to_node().clone(),
                 candidate.edge.get_length() - candidate.offset,
-                candidate.edge.get_length() - candidate.offset,
+                0.0,
                 EdgeType::Dummy,
                 "dummy_edge".to_string(),
                 candidate.edge.get_geometry().clone(),
@@ -298,23 +299,16 @@ impl MMatch {
                         );
                         continue;
                     }
-                    // 构建虚拟的node 并添加到图中
+                    // 构建当前层的虚拟的node 并添加到图中
                     // a--->b     a-->cs--->b
-                    let dummy_node_id = format!(
-                        "{:.16}-{:.16}-{:.16}-{:.16}",
-                        cur_condidate.closest_point.0,
-                        cur_condidate.closest_point.1,
-                        trj.point.0,
-                        trj.point.1
-                    );
-                    // 生成一个虚拟边
+                    // 生成一个虚拟边 a--->cs
                     use uuid::Uuid;
                     let edge = Edge::new(
                         Uuid::new_v4().to_string(),
                         cur_condidate.edge.get_from_node().clone(),
-                        dummy_node_id.clone(),
+                        cur_condidate.dummy_node_id.clone(),
                         cur_condidate.offset,
-                        cur_condidate.offset,
+                        0.0,
                         EdgeType::Dummy,
                         "dummy_edge".to_string(),
                         cur_condidate.edge.get_geometry().clone(),
@@ -323,10 +317,10 @@ impl MMatch {
                     // 生成cs---->b 这个虚拟边
                     let edge = Edge::new(
                         Uuid::new_v4().to_string(),
-                        dummy_node_id.clone(),
+                        cur_condidate.dummy_node_id.clone(),
                         cur_condidate.edge.get_to_node().clone(),
                         cur_condidate.edge.get_length() - cur_condidate.offset,
-                        cur_condidate.edge.get_length() - cur_condidate.offset,
+                        0.0,
                         EdgeType::Dummy,
                         "dummy_edge".to_string(),
                         cur_condidate.edge.get_geometry().clone(),
@@ -353,14 +347,12 @@ impl MMatch {
                                 .candidate
                                 .as_ref()
                                 .unwrap()
-                                .edge
-                                .get_from_node()
+                                .dummy_node_id
                                 .clone(),
-                            dummy_node_id.clone(),
+                            cur_condidate.dummy_node_id.clone(),
                             cur_condidate.offset
                                 - prev_layer.borrow().candidate.as_ref().unwrap().offset,
-                            cur_condidate.offset
-                                - prev_layer.borrow().candidate.as_ref().unwrap().offset,
+                            0.0,
                             EdgeType::Dummy,
                             "dummy_edge".to_string(),
                             prev_layer
@@ -378,8 +370,9 @@ impl MMatch {
                         } else if prev_layer.borrow().candidate.as_ref().unwrap().offset
                             - cur_condidate.offset
                             < cfg.reverse_tolerance
+                        // 后一个GPS点在前一个GPS点之前 如果范围可控 认为依旧有效
                         {
-                            edge.set_ori_length(0.0000000001);
+                            edge.set_length(0.0000000001);
                             updata_graph_ok = true;
                         }
                         if updata_graph_ok {
@@ -410,21 +403,20 @@ impl MMatch {
                     let prev = prev_layer.borrow();
                     let prev_candidate = prev.candidate.as_ref().unwrap();
                     // let prev_candidate = prev_layer.borrow().candidate.unwrap();
-                    let prev_node_id = format!(
-                        "{:.16}-{:.16}-{:.16}-{:.16}",
-                        prev_candidate.closest_point.0,
-                        prev_candidate.closest_point.1,
-                        prev_candidate.ori_traj_point.point.0,
-                        prev_candidate.ori_traj_point.point.1
-                    );
-                    let prev_node_index = self.road_graph.network.find_node_by_id(&prev_node_id);
+                    let prev_node_index = self
+                        .road_graph
+                        .network
+                        .find_node_by_id(&prev_candidate.dummy_node_id);
                     if prev_node_index.is_none() {
-                        error!("prev_node_index {} is none", prev_node_id);
+                        error!("prev_node_index {} is none", &prev_candidate.dummy_node_id);
                         continue;
                     }
-                    let cur_node_index = self.road_graph.network.find_node_by_id(&dummy_node_id);
+                    let cur_node_index = self
+                        .road_graph
+                        .network
+                        .find_node_by_id(&cur_condidate.dummy_node_id);
                     if cur_node_index.is_none() {
-                        error!("cur_node_index {} is none", dummy_node_id);
+                        error!("cur_node_index {} is none", &cur_condidate.dummy_node_id);
                         continue;
                     }
 

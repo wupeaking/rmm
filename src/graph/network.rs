@@ -22,11 +22,11 @@ pub enum EdgeType {
 
 #[derive(Clone)]
 pub struct Edge {
-    id: String,      // edge的id
-    from: String,    // edge的起点
-    to: String,      // edge的终点
-    length: f64,     // edge的长度 米制单位
-    ori_length: f64, // edge的原始长度
+    id: String,       // edge的id
+    from: String,     // edge的起点
+    to: String,       // edge的终点
+    length: f64,      // edge的欧式长度 为了适配不同的坐标体系
+    real_length: f64, // edge的真实长度 此长度的单位是米
     #[allow(dead_code)]
     edge_type: EdgeType, // edge的类型
     #[allow(dead_code)]
@@ -40,7 +40,7 @@ impl Edge {
         from: String,
         to: String,
         length: f64,
-        ori_length: f64,
+        real_length: f64,
         edge_type: EdgeType,
         name: String,
         geometry: Geometry,
@@ -50,7 +50,7 @@ impl Edge {
             from,
             to,
             length,
-            ori_length,
+            real_length,
             edge_type,
             name,
             geometry,
@@ -79,8 +79,8 @@ impl Edge {
         self.length = length;
     }
 
-    pub fn set_ori_length(&mut self, ori_length: f64) {
-        self.ori_length = ori_length;
+    pub fn set_real_length(&mut self, real_length: f64) {
+        self.real_length = real_length;
     }
 
     pub fn get_geometry(&self) -> &geojson::Geometry {
@@ -134,7 +134,7 @@ impl TryFrom<geojson::GeoJson> for Network {
                     let properties = feature.properties.unwrap();
                     let from = properties["from_node_id"].as_i64().unwrap().to_string();
                     let to = properties["to_node_id"].as_i64().unwrap().to_string();
-                    let ori_length = properties["length"].as_f64().unwrap();
+                    let real_length = algorithm::linestring_distance(&geometry)?;
                     let name = match properties.get("name") {
                         Some(v) => {
                             if v.is_string() {
@@ -146,14 +146,14 @@ impl TryFrom<geojson::GeoJson> for Network {
                         None => "".to_string(),
                     };
                     let edge_type = EdgeType::Real;
-                    let length = algorithm::linestring_distance(&geometry)?;
+                    let length = algorithm::linestring_eu_distance(&geometry)?;
                     let id = properties["edge_id"].as_i64().unwrap().to_string();
                     let edge = Edge {
                         id,
                         from,
                         to,
                         length,
-                        ori_length,
+                        real_length,
                         edge_type,
                         name,
                         geometry,
