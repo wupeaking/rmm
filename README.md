@@ -30,3 +30,5 @@ Options:
 ```shell
 rmm --network-file ./edges_shanghai.json traj.geojson
 ```
+#### 匹配结果
+![匹配结果](./img/mm_result.png)
